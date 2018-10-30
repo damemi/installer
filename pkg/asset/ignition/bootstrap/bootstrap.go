@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,6 +79,17 @@ func (a *Bootstrap) Dependencies() []asset.Asset {
 func (a *Bootstrap) Generate(dependencies asset.Parents) error {
 	installConfig := &installconfig.InstallConfig{}
 	dependencies.Get(installConfig)
+
+	tmpDir, err := ioutil.TempDir("", "openshift-install-")
+	if err != nil {
+		return errors.Wrap(err, "failed to create temp dir for terraform execution")
+	}
+	defer os.RemoveAll(tmpDir)
+
+	installConfigFile := installConfig.Files()[0]
+	if err := ioutil.WriteFile(filepath.Join(tmpDir, installConfigFile.Filename), installConfigFile.Data, 0600); err != nil {
+		return errors.Wrap(err, "failed to write install-config.yml file")
+	}
 
 	templateData, err := a.getTemplateData(installConfig.Config)
 	if err != nil {
